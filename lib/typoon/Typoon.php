@@ -108,7 +108,7 @@ class TyForm {
 	}
 	
 	static function errorCheck(){
-		return empty(self::$error);
+		return empty(TyData::$error);
 	}
 	
 	// Form token.
