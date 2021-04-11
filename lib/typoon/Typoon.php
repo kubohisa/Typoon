@@ -274,6 +274,17 @@ class TySqlite {
 		}
 	}
 	
+	public static function execFetchAll($sql) {
+		try {
+			$st = self::$d->prepare($sql);
+			$st->execute();
+			return $st->fetchAll();
+		} catch (Exception $e) {
+			echo mb_convert_encoding($e->getMessage().PHP_EOL, 'UTF-8', 'auto');
+			die;
+		}
+	}
+	
 	public static function fetch($sql, $array) {
 		try {
 			$st = self::$d->prepare($sql);
@@ -289,7 +300,7 @@ class TySqlite {
 		try {
 			$st = self::$d->prepare($sql);
 			$st->execute($array);
-			return $st->fetch();
+			return $st->fetchAll();
 		} catch (Exception $e) {
 			echo mb_convert_encoding($e->getMessage().PHP_EOL, 'UTF-8', 'auto');
 			die;
@@ -399,7 +410,11 @@ class TyFile {
 			$size[0],
 			$size[1]
 		);
-		imagejpeg($dst_im, self::$dir."podcast.png");
+		imagepng($dst_im, self::$dir."podcast.png");
 		self::delete($param);
+	}
+	
+	public static function guid($param) {
+		return hash('sha256', $param);
 	}
 }
