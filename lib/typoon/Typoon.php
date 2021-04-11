@@ -3,7 +3,7 @@ class TyDatabaseInter {
 	public static $domain = "";
 	public static $user = "";
 	public static $password = "";
-	public static $database = "";
+	public static $database = "sqlite.db";
 }
 
 class TyForm {
@@ -30,6 +30,9 @@ class TyForm {
 			switch ($ruleKey) {
 				case "trim":
 					$data_ = preg_replace('#\A[\p{C}\p{Z}]++|[\p{C}\p{Z}]++\z#u', '', $data_);
+					break;
+				case "plain":
+					$data_ = preg_replace('#[\p{C}\p{Z}]#u', '', $data_);
 					break;
 				case "longtrim":
 					$data_ = preg_replace('/\n\r/u', '\r\n', $data_);
@@ -104,7 +107,7 @@ class TyForm {
 	}
 	
 	static function error($name, $key){
-		TyData::$error[$name.".".$key] = true;
+		TyData::$error[$name][$key] = true;
 	}
 	
 	static function errorCheck(){
@@ -197,6 +200,7 @@ class TyLogin {
 		session_destroy();
 		
 		header("Location: /");
+		exit;
 	}
 	
 	static function uidMake($userId) {
@@ -222,10 +226,10 @@ class TySqlite {
 	
 	// mysql
 	public static function connect() {
-		if (isset(self::$d)) return $d;
+		if (isset(self::$d)) return self::$d;
 		
 		try {
-			self::$d = new PDO('sqlite:../data/sqlite.db');
+			self::$d = new PDO('sqlite:../data/'.TyDatabaseInter::$database);
 			self::$d->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
 			self::$d->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 			return self::$d;
@@ -242,6 +246,28 @@ class TySqlite {
 	public static function exec($sql) {
 		try {
 			$st = self::$d->exec($sql);
+		} catch (Exception $e) {
+			echo mb_convert_encoding($e->getMessage().PHP_EOL, 'UTF-8', 'auto');
+			die;
+		}
+	}
+	
+	public static function execParam($sql, $array) {
+		try {
+			$st = self::$d->prepare($sql);
+			$st->execute($array);
+			return;
+		} catch (Exception $e) {
+			echo mb_convert_encoding($e->getMessage().PHP_EOL, 'UTF-8', 'auto');
+			die;
+		}
+	}
+	
+	public static function execFetch($sql) {
+		try {
+			$st = self::$d->prepare($sql);
+			$st->execute();
+			return $st->fetch();
 		} catch (Exception $e) {
 			echo mb_convert_encoding($e->getMessage().PHP_EOL, 'UTF-8', 'auto');
 			die;
@@ -285,5 +311,95 @@ class TyMail {
 		
 		$header = "From: $fromAdrs\nReply-To: $fromAdrs\n";
 		return mb_send_mail($toAdrs, $subject, $body, $header);
+	}
+}
+
+class TyFile {
+	static $dir = "";
+	
+	public static function setDir($dir) {
+		self::$dir = rtrim($dir)."/";
+	}
+	
+	public static function filename($param) {
+		return $_FILES[$param]['name'];
+	}
+	
+	public static function save($param) {
+		if(is_uploaded_file($_FILES[$param]['tmp_name'])){
+			if(move_uploaded_file($_FILES[$param]['tmp_name'], self::$dir.$_FILES[$param]['name'])){
+				return $_FILES[$param]['name'];
+			}
+		}
+		return "";
+	}
+	
+	public static function delete($param) {
+		if(file_exists(self::$dir.$_FILES[$param]['name'])) {
+			if(unlink(self::$dir.$_FILES[$param]['name'])){
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public static function size($param) {
+		return $_FILES[$param]['size'];
+	}
+	
+	public static function checkImage($param) {
+		if (!file_exists(self::$dir.$_FILES[$param]['name'])) return false;
+		if (!($type = exif_imagetype(self::$dir.$_FILES[$param]['name']))) return false;
+		
+		switch ($type) {
+			case IMAGETYPE_GIF:
+			case IMAGETYPE_JPEG:
+			case IMAGETYPE_PNG:
+				return true;
+				break;
+			default:
+				return false;
+				break;
+		}
+	}
+	
+	public static function podcastImage($param) {
+		if (!file_exists(self::$dir.$_FILES[$param]['name'])) return false;
+		$size = getimagesize(self::$dir.$_FILES[$param]['name']);
+		
+		$im = null;
+		switch ($size[2]) {
+			case IMAGETYPE_GIF:
+				$im = @imagecreatefromgif(self::$dir.$_FILES[$param]['name']);
+				break;
+			case IMAGETYPE_JPEG:
+				$im = @imagecreatefromjpeg(self::$dir.$_FILES[$param]['name']);
+				break;
+			case IMAGETYPE_PNG:
+				$im = @imagecreatefrompng(self::$dir.$_FILES[$param]['name']);
+				break;
+			default:
+				return false;
+				break;
+		}
+		
+		if(!$im) return false;
+		
+		$dst_im = imagecreate(300, 300);
+		
+		imagecopyresampled(
+			$dst_im,
+			$im,
+			0,
+			0,
+			0,
+			0,
+			300,
+			300,
+			$size[0],
+			$size[1]
+		);
+		imagejpeg($dst_im, self::$dir."podcast.png");
+		self::delete($param);
 	}
 }

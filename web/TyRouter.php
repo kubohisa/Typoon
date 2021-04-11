@@ -6,7 +6,7 @@
 	
 	ini_set('display_errors',1);
 	error_reporting(E_ALL);
-	
+		
 	require_once '../lib/smarty/Smarty.class.php';
 	require_once("../lib/typoon/Typoon.php");
 
@@ -19,14 +19,21 @@
 		public static $rule = array(
 				"/form/:hoge/:hogi/:hoe" => "form",
 				"/admin" => "adminLogin",
-				"/admin/toppage" => "adminTop"
+				"/admin/toppage" => "adminTop",
+				"/admin/cast" => "adminCast"
 		);
 	}
 	
 	// Echo files.
 	$_SERVER = TyRouterInter::sanitizer($_SERVER);
-	
 	$_url = ltrim($_SERVER["REQUEST_URI"], "\/");
+	
+	// 画像データなど
+	if (file_exists($_url)) {
+		TyRouterInter::echo($_url);
+	}
+	
+	// ｈｔｍｌファイル
 	if ($_url == "" && file_exists("index.html")) {
 		TyRouterInter::echo("index.html");
 	} elseif (file_exists($_url.".html")) {
@@ -78,6 +85,11 @@
 	// ライフチェック
 	if($_url == "/life"){
 		echo("life."); exit;
+	}
+	
+	// Logout.
+	if($_url == "/logout"){
+		TyLogin::logout();
 	}
 	
 	// URLルーティング
